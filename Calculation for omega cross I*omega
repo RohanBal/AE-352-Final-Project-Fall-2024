@@ -1,0 +1,10 @@
+from sympy import *
+#product of omega cross I*omega
+
+Ixx, Iyy, Izz, thetadot, phidot, psidot = symbols('Ixx, Iyy, Izz, thetadot, phidot, psidot')
+
+I = Matrix([[Ixx, 0, 0],[0, Iyy, 0],[0, 0, Izz]])
+omega = Matrix([[phidot],[thetadot],[psidot]])
+
+product = omega.cross(I*omega)
+product
