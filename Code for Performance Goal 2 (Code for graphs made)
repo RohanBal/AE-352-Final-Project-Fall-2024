@@ -1,0 +1,229 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import odeint
+from matplotlib import animation
+import matplotlib.image as mpimg
+
+mbody = 3.18 #kg
+marm = 0.119 #kg
+mmotor = 0.2 #kg
+Larm = 0.325 #m
+dmotor = 0.325 #m
+l = 0.46 #length
+b = 0.46 #width
+h = 0.15 #height d
+g = 9.81 #m/s^2
+Kt = 1  # Thrust coefficient
+Kq = 0.1  # Torque coefficient (yaw)
+m = 3 #kg
+
+#Inertias
+I_armxx = (1/12)*marm*(Larm**2)
+I_motorxx = mmotor*(dmotor**2)
+I_bodyxx = (1/12)*mbody*(h**2 + b**2)
+#Ixx = I_armxx + I_motorxx + I_bodyxx
+Ixx = 0.8
+
+I_armyy = 0
+I_motoryy = mmotor*(dmotor**2)
+I_bodyyy = (1/12)*mbody*(l**2 + h**2)
+#Iyy = I_armyy + I_motoryy + I_bodyyy
+Iyy = 0.8
+
+I_armzz = (1/12)*marm*(Larm**2)
+I_motorzz = 0
+I_bodyzz = (1/12)*mbody*(l**2 + b**2)
+Izz = I_armzz + I_motorzz + I_bodyzz
+
+vel = 0.5 # m/s
+radi = 2 #m
+circum = 2*np.pi*radi
+revol = circum/vel
+thetamax = np.tan(((m*(vel**2))/radi)/(m*g))
+phimax = thetamax
+
+def quadcopterdynamics(state, t, program, u):
+
+  if program == 'hover':
+    x, y, z, phi, theta, psi, vx, vy, vz, p, q, r = state
+
+    thrust1, thrust2, thrust3, thrust4 = u
+
+    # Calculate total thrust and moments
+    total_thrust = (thrust1 + thrust2 + thrust3 + thrust4) * Kt
+    momentz = Kq * (thrust1 - thrust2 + thrust3 - thrust4)
+    momentx = l * Kt * (-thrust1 + thrust3)
+    momenty = l * Kt * (-thrust2 + thrust4)
+
+
+    # Rotation matrix (body to world frame)
+    Rz = np.array([[np.cos(psi), -np.sin(psi), 0], [np.sin(psi), np.cos(psi), 0], [0, 0, 1]])
+    Rx = np.array([[1, 0, 0], [0, np.cos(phi), -np.sin(phi)], [0, np.sin(phi), np.cos(phi)]])
+    Ry = np.array([[np.cos(theta), 0, np.sin(theta)], [0, 1, 0], [-np.sin(theta), 0, np.cos(theta)]])
+    R = np.dot(Rz, np.dot(Ry, Rx))
+
+    # Calculate acceleration in world frame
+    gravitye = np.array([0, 0, -g]) + np.dot(R, np.array([0, 0, total_thrust / m]))
+
+
+    # Angular velocity derivatives
+    dpdt = (momentx / Ixx) + (q * r * (Iyy - Izz) / Ixx)
+    dqdt = (momenty / Iyy) + (p * r * (Izz - Ixx) / Iyy)
+    drdt = (momentz / Izz) + (p * q * (Ixx - Iyy) / Izz)
+
+    return [vx, vy, vz, p, q, r, gravitye[0], gravitye[1], gravitye[2], dpdt, dqdt, drdt]
+
+  elif program == 'circle':
+
+    T = t/revol #Period
+    ax = -2*thetamax * np.cos(2*np.pi*T)*((np.pi)/revol)
+    by = 2*phimax * -np.sin(2*np.pi*T)*((np.pi)/revol)
+
+    x, y, z, phi, theta, psi, vx, vy, vz, p, q, r = state
+    p = by
+    q = ax
+
+    thrust1, thrust2, thrust3, thrust4 = u
+
+    total_thrust = (thrust1 + thrust2 + thrust3 + thrust4) * Kt
+    momentx = l * Kt * (-thrust1 + thrust3)
+    momenty = l * Kt * (-thrust2 + thrust4)
+    momentz = Kq * (thrust1 - thrust2 + thrust3 - thrust4)
+
+    Rz = np.array([[np.cos(psi), -np.sin(psi), 0], [np.sin(psi), np.cos(psi), 0], [0, 0, 1]])
+    Rx = np.array([[1, 0, 0], [0, np.cos(phi), -np.sin(phi)], [0, np.sin(phi), np.cos(phi)]])
+    Ry = np.array([[np.cos(theta), 0, np.sin(theta)], [0, 1, 0], [-np.sin(theta), 0, np.cos(theta)]])
+    R = np.dot(Rz, np.dot(Ry, Rx))
+
+    gravitye = np.array([0, 0, -g]) + np.dot(R, np.array([0, 0, total_thrust / m]))
+
+    dpdt = (momentx / Ixx) + (q * r * (Iyy - Izz) / Ixx)
+    dqdt = (momenty / Iyy) + (p * r * (Izz - Ixx) / Iyy)
+    drdt = (momentz / Izz) + (p * q * (Ixx - Iyy) / Izz)
+
+
+    return [vx, vy, vz, p, q, r, gravitye[0], gravitye[1], gravitye[2], dpdt, dqdt, drdt]
+
+# Simulation parameters
+t_final = 60  # Simulation time (s)
+dt = 0.01  # Time step (s)
+t = np.arange(0.00001, t_final, dt)
+
+program = 'circle'
+
+if program =='circle':
+  thei=0.012741410358074301
+  # Initial state (x, y, z, phi, theta, psi, vx, vy, vz, p, q, r)
+  initial_state = [0, 2, 1, thei,    0,   0, 0.5,0.0, 0, 0, 0, 0]
+
+  Tz = m*g
+  Tw = m*((vel**2)/2)
+  Treq = np.sqrt(Tz**2 + Tw**2)
+  thrust1 = Treq / 4
+  thrust2 = thrust1
+  thrust3 = thrust1
+  thrust4 = thrust1
+  u = [thrust1, thrust2, thrust3, thrust4]
+
+  T = t/revol
+  q= -2*thetamax * np.cos(2*np.pi*T)*((np.pi)/revol)
+  p= 2*phimax * -np.sin(2*np.pi*T)*((np.pi)/revol)
+  r = 0*t # yaw rate (r) from the simulation
+
+elif program == 'hover':
+  # Initial state (x, y, z, phi, theta, psi, vx, vy, vz, p, q, r)
+  initial_state = [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+  Treq = np.sqrt((m*g)**2)
+  thrust1 = Treq / 4
+  thrust2 = thrust1
+  thrust3 = thrust1
+  thrust4 = thrust1
+  u = [thrust1, thrust2, thrust3, thrust4]
+  p  = 0*t
+  q = 0*t
+  r = 0*t
+  T = t/revol
+
+
+alp = odeint(quadcopterdynamics, initial_state, t, args=(program,u))
+
+x = alp[:, 0]
+y = alp[:, 1]
+z = alp[:, 2]
+phi = alp[:, 3]
+theta = alp[:, 4]
+psi = alp[:, 5]
+vx = alp[:,6]
+vy = alp[:,7]
+vz = alp[:,8]
+
+plt.figure(figsize=(10, 10))
+
+# X vs. Time
+plt.subplot(5,3,1)
+plt.plot(t, x)
+plt.xlabel('Time in s')
+plt.ylabel('X in m')
+plt.title('X vs Time')
+
+# Y vs. Time
+plt.subplot(5,3,2)
+plt.plot(t, y)
+plt.xlabel('Time in s')
+plt.ylabel('Y in m ')
+plt.title('Y vs Time')
+
+# Z vs. Time
+plt.subplot(5,3,3)
+plt.plot(t, z)
+plt.ylim(0,1.2)
+plt.xlabel('Time in s')
+plt.ylabel('Z in m')
+plt.title('Z vs Time')
+
+# Vx vs. Time
+plt.subplot(5,3,6)
+plt.plot(t, vx)
+plt.xlabel('Time in s')
+plt.ylabel('speed in m/s')
+plt.title('$V_x$ vs Time')
+
+# Vy vs. Time
+plt.subplot(5,3,5)
+plt.plot(t, vy)
+plt.xlabel('Time in s')
+plt.ylabel('speed in m/s')
+plt.title('$V_y$ vs Time')
+
+# Vz vs. Time
+plt.subplot(5,3,4)
+plt.plot(t, vz)
+plt.ylim(-1,1)
+plt.xlabel('Time in s')
+plt.ylabel('speed in m/s')
+plt.title('$V_z$ vs Time')
+
+# Roll (phi) vs. Time
+plt.subplot(5,3,7)
+plt.plot(t, phi)
+plt.xlabel('Time in s')
+plt.ylabel('Roll ($\phi$) in rad')
+plt.title('Roll ($\phi$) vs Time')
+
+# Pitch (theta) vs. Time
+plt.subplot(5,3,8)
+plt.plot(t, theta)
+plt.xlabel('Time in s')
+plt.ylabel('Pitch (\u0398) in rad')
+plt.title('Pitch (\u0398) vs Time')
+
+# Yaw (psi) vs. Time
+plt.subplot(5,3,9)
+plt.plot(t, psi)
+plt.xlabel('Time in s')
+plt.ylabel('Yaw ($\psi$) in rad')
+plt.title('Yaw ($\psi$) vs Time')
+
+plt.tight_layout()
+plt.show()
