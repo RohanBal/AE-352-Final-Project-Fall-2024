@@ -1,0 +1,29 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Parameters
+r = 2  #m
+alt = 1  #m
+v = 0.5  #m/s
+m = 3.1805  #kg
+time_ = 60  #s
+
+omega = v / r  # rad/s
+
+time = np.linspace(0, time_, 1000)
+
+x = r * np.cos(omega * time)
+y = r * np.sin(omega * time)
+z = np.full_like(time, alt)
+
+fig = plt.figure(figsize=(10, 6))
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(x, y, z, label="Path of Motion", color="green")
+
+ax.set_title("Circular Flight Path of Quadcopter (PG2)", fontsize=14)
+ax.set_xlabel("X #m", fontsize=12)
+ax.set_ylabel("Y #m", fontsize=12)
+ax.set_zlabel("Z #m", fontsize=12)
+ax.legend()
+ax.grid(True)
+plt.show()
