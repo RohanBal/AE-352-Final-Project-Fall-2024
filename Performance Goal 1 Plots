@@ -1,0 +1,50 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+time = np.linspace(0, 120, 1000)
+altitude = np.ones_like(time)
+
+plt.figure(figsize=(10, 6))
+plt.plot(time, altitude, label="Altitude", color='green')
+plt.title("Drone Altitude vs. Time While Hovering")
+plt.xlabel("Time (s)")
+plt.ylabel("Altitude (m)")
+plt.axhline(y=1, color='gray', linestyle='--', label="Predefined Flight Mission")
+plt.grid(True, linestyle='--')
+plt.legend()
+plt.show()
+
+# Constants
+mass = 3.1805  # mass of drone (kg)
+g = 9.81  # gravity (m/s^2)
+
+thrust = mass * g
+
+plt.figure(figsize=(10, 6))
+plt.plot(time, thrust * np.ones_like(time), label=f"Thrust = {thrust} N", color='green')
+plt.title("Total Rotor Thrust vs. Time While Hovering")
+plt.xlabel("Time (s)")
+plt.ylabel("Thrust (N)")
+plt.grid(True, linestyle='--')
+plt.legend()
+plt.show()
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+initial_health = 100  # Starting battery health
+total_hover = 117.2  # Total hover endurance in minutes
+t_hover = 120  # Hovering time in seconds (2 minutes)
+ratio = t_hover / (total_hover * 60)
+time = np.linspace(0, t_hover, 100)
+
+health = initial_health - (ratio * 100) * time / t_hover
+
+plt.figure(figsize=(10, 6))
+plt.plot(time, health, label='Battery Health (%)')
+plt.xlabel('Time (s)')
+plt.ylabel('Battery Health (%)')
+plt.title('Battery Health vs Time during Hover')
+plt.legend()
+plt.grid(True)
+plt.show()
