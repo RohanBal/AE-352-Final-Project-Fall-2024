@@ -1,0 +1,18 @@
+from sympy import *
+#EOMS of theta, phi, and psi
+
+Ixx, Iyy, Izz, thetadot, phidot, psidot = symbols('Ixx, Iyy, Izz, thetadot, phidot, psidot')
+thetaddot, phiddot, psiddot = symbols('thetaddot, phiddot, psiddot')
+cl, cd, omega1, omega2, omega3, omega4, l = symbols('cl, cd, omega1, omega2, omega3, omega4, l')
+
+I1 = Matrix([[Ixx, 0, 0],[0, Iyy, 0],[0, 0, Izz]])
+omega = Matrix([[phidot],[thetadot],[psidot]])
+omegadot = Matrix([[phiddot],[thetaddot],[psiddot]])
+
+I = omega.cross(I1*omega)
+text = Matrix([[cl*l*(omega4**2 - omega2**2)],[cl*l*(omega3**2 - omega1**2)],[cd*(omega1**2 - omega2**2 + omega3**2 - omega4**2)]])
+
+eq1 = Eq(omegadot[0], I1.inv()[0]*(text[0] - I[0]))
+eq2 = Eq(omegadot[1, 0], I1.inv()[1, 1]*(text[1, 0] - I[1, 0]))
+eq3 = Eq(omegadot[2, 0], I1.inv()[2, 2]*(text[2, 0] - I[2, 0]))
+eq2   #change eqi to 1,2,3 depending on what is desired to be printed (1 is phidoubledot, 2 is thetadoubledot, 3 is psidoubledot)
